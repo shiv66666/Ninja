@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Personal Finance Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container { height: 300px; }
+        .transaction-row:hover { background-color: #f8fafc; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        @media print {
+            .no-print { display: none !important; }
+            body { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-wallet text-blue-600 text-2xl"></i>
+                    <h1 class="text-2xl font-bold text-gray-900">Personal Finance Tracker</h1>
+                </div>
+                <div class="flex items-center space-x-4 no-print">
+                    <button onclick="exportData()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-download mr-2"></i>Export Data
+                    </button>
+                    <label class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition cursor-pointer">
+                        <i class="fas fa-upload mr-2"></i>Import Data
+                        <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+                    </label>
+                    <button onclick="clearAllData()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                        <i class="fas fa-trash-alt mr-2"></i>Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Dashboard Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Income</p>
+                        <p class="text-2xl font-bold text-green-600" id="totalIncome">NPR 0</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-arrow-up text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Expenses</p>
+                        <p class="text-2xl font-bold text-red-600" id="totalExpenses">NPR 0</p>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i class="fas fa-arrow-down text-red-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Current Balance</p>
+                        <p class="text-2xl font-bold text-blue-600" id="currentBalance">NPR 0</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-wallet text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Savings Rate</p>
+                        <p class="text-2xl font-bold text-purple-600" id="savingsRate">0%</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-piggy-bank text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 no-print">
+            <button onclick="showModal('incomeModal')" class="bg-green-600 text-white p-6 rounded-xl hover:bg-green-700 transition text-center">
+                <i class="fas fa-plus-circle text-3xl mb-3"></i>
+                <h3 class="text-lg font-semibold">Add Income</h3>
+                <p class="text-green-100">Record your pocket money</p>
+            </button>
+            
+            <button onclick="showModal('expenseModal')" class="bg-red-600 text-white p-6 rounded-xl hover:bg-red-700 transition text-center">
+                <i class="fas fa-minus-circle text-3xl mb-3"></i>
+                <h3 class="text-lg font-semibold">Add Expense</h3>
+                <p class="text-red-100">Track your spending</p>
+            </button>
+            
+            <button onclick="showModal('goalModal')" class="bg-blue-600 text-white p-6 rounded-xl hover:bg-blue-700 transition text-center">
+                <i class="fas fa-target text-3xl mb-3"></i>
+                <h3 class="text-lg font-semibold">Set Goal</h3>
+                <p class="text-blue-100">Plan your savings</p>
+            </button>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Overview</h3>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-sm p-6 border">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Expense Categories</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Management -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Budget Management</h3>
+                <button onclick="showModal('budgetModal')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition no-print">
+                    <i class="fas fa-plus mr-2"></i>Set Budget
+                </button>
+            </div>
+            <div id="budgetList" class="space-y-4">
+                <p class="text-gray-500 text-center py-8">No budgets set yet. Click "Set Budget" to get started.</p>
+            </div>
+        </div>
+
+        <!-- Savings Goals -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Savings Goals</h3>
+                <button onclick="showModal('goalModal')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition no-print">
+                    <i class="fas fa-plus mr-2"></i>Add Goal
+                </button>
+            </div>
+            <div id="goalsList" class="space-y-4">
+                <p class="text-gray-500 text-center py-8">No savings goals yet. Set your first goal to get started!</p>
+            </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Transaction History</h3>
+                <div class="flex items-center space-x-4 no-print">
+                    <select id="filterType" onchange="filterTransactions()" class="border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="all">All Transactions</option>
+                        <option value="income">Income Only</option>
+                        <option value="expense">Expenses Only</option>
+                    </select>
+                    <select id="filterCategory" onchange="filterTransactions()" class="border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">Date</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">Description</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">Category</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">Type</th>
+                            <th class="text-right py-3 px-4 font-medium text-gray-700">Amount</th>
+                            <th class="text-center py-3 px-4 font-medium text-gray-700 no-print">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionHistory">
+                        <tr>
+                            <td colspan="6" class="text-center py-8 text-gray-500">No transactions yet. Add your first income or expense!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Financial Summary Report -->
+        <div class="bg-white rounded-xl shadow-sm p-6 border">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">Financial Summary Report</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="financialSummary">
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Monthly Income Average</p>
+                    <p class="text-xl font-bold text-green-600" id="avgIncome">NPR 0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Monthly Expense Average</p>
+                    <p class="text-xl font-bold text-red-600" id="avgExpense">NPR 0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Highest Expense Category</p>
+                    <p class="text-xl font-bold text-orange-600" id="topCategory">None</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Total Transactions</p>
+                    <p class="text-xl font-bold text-blue-600" id="totalTransactions">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Budget Adherence</p>
+                    <p class="text-xl font-bold text-purple-600" id="budgetAdherence">N/A</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-sm text-gray-600">Goals Achievement</p>
+                    <p class="text-xl font-bold text-indigo-600" id="goalsAchievement">0%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Income Modal -->
+    <div id="incomeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Add Income</h3>
+                <button onclick="hideModal('incomeModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form onsubmit="addIncome(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Amount (NPR)</label>
+                        <input type="number" id="incomeAmount" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <input type="text" id="incomeDescription" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., Monthly allowance">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input type="date" id="incomeDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button type="button" onclick="hideModal('incomeModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                    <button type="submit" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition">Add Income</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Add Expense</h3>
+                <button onclick="hideModal('expenseModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form onsubmit="addExpense(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Amount (NPR)</label>
+                        <input type="number" id="expenseAmount" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <input type="text" id="expenseDescription" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent" placeholder="e.g., Lunch at restaurant">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="expenseCategory" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            <option value="">Select category</option>
+                            <option value="Food">Food & Dining</option>
+                            <option value="Transport">Transportation</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Education">Education</option>
+                            <option value="Health">Health & Medical</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input type="date" id="expenseDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button type="button" onclick="hideModal('expenseModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                    <button type="submit" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition">Add Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Goal Modal -->
+    <div id="goalModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Set Savings Goal</h3>
+                <button onclick="hideModal('goalModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form onsubmit="addGoal(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Goal Name</label>
+                        <input type="text" id="goalName" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., Buy Phone">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Target Amount (NPR)</label>
+                        <input type="number" id="goalAmount" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Target Date</label>
+                        <input type="date" id="goalDate" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button type="button" onclick="hideModal('goalModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Set Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budgetModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Set Budget</h3>
+                <button onclick="hideModal('budgetModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form onsubmit="addBudget(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="budgetCategory" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select category</option>
+                            <option value="Food">Food & Dining</option>
+                            <option value="Transport">Transportation</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Education">Education</option>
+                            <option value="Health">Health & Medical</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Monthly Limit (NPR)</label>
+                        <input type="number" id="budgetAmount" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button type="button" onclick="hideModal('budgetModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Set Budget</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div id="editModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Edit Transaction</h3>
+                <button onclick="hideModal('editModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form onsubmit="updateTransaction(event)">
+                <input type="hidden" id="editTransactionId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Amount (NPR)</label>
+                        <input type="number" id="editAmount" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <input type="text" id="editDescription" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div id="editCategoryDiv">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                        <select id="editCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="Food">Food & Dining</option>
+                            <option value="Transport">Transportation</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Education">Education</option>
+                            <option value="Health">Health & Medical</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input type="date" id="editDate" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button type="button" onclick="hideModal('editModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Data Storage
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let goals = JSON.parse(localStorage.getItem('goals')) || [];
+        let budgets = JSON.parse(localStorage.getItem('budgets')) || [];
+
+        // Charts
+        let monthlyChart = null;
+        let categoryChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('incomeDate').value = today;
+            document.getElementById('expenseDate').value = today;
+            
+            updateDashboard();
+            updateTransactionHistory();
+            updateGoalsList();
+            updateBudgetList();
+            updateCharts();
+            updateFilterCategories();
+            updateFinancialSummary();
+        });
+
+        // Modal Functions
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Transaction Functions
+        function addIncome(event) {
+            event.preventDefault();
+            const amount = parseFloat(document.getElementById('incomeAmount').value);
+            const description = document.getElementById('incomeDescription').value;
+            const date = document.getElementById('incomeDate').value;
+
+            const transaction = {
+                id: Date.now(),
+                type: 'income',
+                amount: amount,
+                description: description,
+                category: 'Income',
+                date: date,
+                timestamp: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            saveData();
+            updateDashboard();
+            updateTransactionHistory();
+            updateCharts();
+            updateFinancialSummary();
+            hideModal('incomeModal');
+            
+            // Reset form
+            document.getElementById('incomeAmount').value = '';
+            document.getElementById('incomeDescription').value = '';
+        }
+
+        function addExpense(event) {
+            event.preventDefault();
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const description = document.getElementById('expenseDescription').value;
+            const category = document.getElementById('expenseCategory').value;
+            const date = document.getElementById('expenseDate').value;
+
+            const transaction = {
+                id: Date.now(),
+                type: 'expense',
+                amount: amount,
+                description: description,
+                category: category,
+                date: date,
+                timestamp: new Date().toISOString()
+            };
+
+            transactions.push(transaction);
+            saveData();
+            updateDashboard();
+            updateTransactionHistory();
+            updateCharts();
+            updateBudgetList();
+            updateFinancialSummary();
+            hideModal('expenseModal');
+            
+            // Reset form
+            document.getElementById('expenseAmount').value = '';
+            document.getElementById('expenseDescription').value = '';
+            document.getElementById('expenseCategory').value = '';
+        }
+
+        function editTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            document.getElementById('editTransactionId').value = id;
+            document.getElementById('editAmount').value = transaction.amount;
+            document.getElementById('editDescription').value = transaction.description;
+            document.getElementById('editDate').value = transaction.date;
+
+            if (transaction.type === 'expense') {
+                document.getElementById('editCategory').value = transaction.category;
+                document.getElementById('editCategoryDiv').style.display = 'block';
+            } else {
+                document.getElementById('editCategoryDiv').style.display = 'none';
+            }
+
+            showModal('editModal');
+        }
+
+        function updateTransaction(event) {
+            event.preventDefault();
+            const id = parseInt(document.getElementById('editTransactionId').value);
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const description = document.getElementById('editDescription').value;
+            const date = document.getElementById('editDate').value;
+
+            const transactionIndex = transactions.findIndex(t => t.id === id);
+            if (transactionIndex === -1) return;
+
+            transactions[transactionIndex].amount = amount;
+            transactions[transactionIndex].description = description;
+            transactions[transactionIndex].date = date;
+
+            if (transactions[transactionIndex].type === 'expense') {
+                transactions[transactionIndex].category = document.getElementById('editCategory').value;
+            }
+
+            saveData();
+            updateDashboard();
+            updateTransactionHistory();
+            updateCharts();
+            updateBudgetList();
+            updateFinancialSummary();
+            hideModal('editModal');
+        }
+
+        function deleteTransaction(id) {
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                saveData();
+                updateDashboard();
+                updateTransactionHistory();
+                updateCharts();
+                updateBudgetList();
+                updateFinancialSummary();
+            }
+        }
+
+        // Goals Functions
+        function addGoal(event) {
+            event.preventDefault();
+            const name = document.getElementById('goalName').value;
+            const amount = parseFloat(document.getElementById('goalAmount').value);
+            const date = document.getElementById('goalDate').value;
+
+            const goal = {
+                id: Date.now(),
+                name: name,
+                amount: amount,
+                targetDate: date,
+                achieved: false,
+                createdAt: new Date().toISOString()
+            };
+
+            goals.push(goal);
+            saveData();
+            updateGoalsList();
+            updateFinancialSummary();
+            hideModal('goalModal');
+            
+            // Reset form
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalAmount').value = '';
+            document.getElementById('goalDate').value = '';
+        }
+
+        function deleteGoal(id) {
+            if (confirm('Are you sure you want to delete this goal?')) {
+                goals = goals.filter(g => g.id !== id);
+                saveData();
+                updateGoalsList();
+                updateFinancialSummary();
+            }
+        }
+
+        function toggleGoal(id) {
+            const goal = goals.find(g => g.id === id);
+            if (goal) {
+                goal.achieved = !goal.achieved;
+                saveData();
+                updateGoalsList();
+                updateFinancialSummary();
+            }
+        }
+
+        // Budget Functions
+        function addBudget(event) {
+            event.preventDefault();
+            const category = document.getElementById('budgetCategory').value;
+            const amount = parseFloat(document.getElementById('budgetAmount').value);
+
+            // Check if budget for this category already exists
+            const existingBudget = budgets.find(b => b.category === category);
+            if (existingBudget) {
+                existingBudget.amount = amount;
+            } else {
+                const budget = {
+                    id: Date.now(),
+                    category: category,
+                    amount: amount,
+                    createdAt: new Date().toISOString()
+                };
+                budgets.push(budget);
+            }
+
+            saveData();
+            updateBudgetList();
+            updateFinancialSummary();
+            hideModal('budgetModal');
+            
+            // Reset form
+            document.getElementById('budgetCategory').value = '';
+            document.getElementById('budgetAmount').value = '';
+        }
+
+        function deleteBudget(id) {
+            if (confirm('Are you sure you want to delete this budget?')) {
+                budgets = budgets.filter(b => b.id !== id);
+                saveData();
+                updateBudgetList();
+                updateFinancialSummary();
+            }
+        }
+
+        // Update Functions
+        function updateDashboard() {
+            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            const currentBalance = totalIncome - totalExpenses;
+            const savingsRate = totalIncome > 0 ? ((currentBalance / totalIncome) * 100).toFixed(1) : 0;
+
+            document.getElementById('totalIncome').textContent = `NPR ${totalIncome.toLocaleString()}`;
+            document.getElementById('totalExpenses').textContent = `NPR ${totalExpenses.toLocaleString()}`;
+            document.getElementById('currentBalance').textContent = `NPR ${currentBalance.toLocaleString()}`;
+            document.getElementById('savingsRate').textContent = `${savingsRate}%`;
+        }
+
+        function updateTransactionHistory() {
+            const tbody = document.getElementById('transactionHistory');
+            const filterType = document.getElementById('filterType').value;
+            const filterCategory = document.getElementById('filterCategory').value;
+            
+            let filteredTransactions = transactions;
+            
+            if (filterType !== 'all') {
+                filteredTransactions = filteredTransactions.filter(t => t.type === filterType);
+            }
+            
+            if (filterCategory !== 'all') {
+                filteredTransactions = filteredTransactions.filter(t => t.category === filterCategory);
+            }
+            
+            if (filteredTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">No transactions found.</td></tr>';
+                return;
+            }
+
+            // Sort by date (newest first)
+            filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            tbody.innerHTML = filteredTransactions.map(transaction => `
+                <tr class="transaction-row border-b">
+                    <td class="py-3 px-4">${new Date(transaction.date).toLocaleDateString()}</td>
+                    <td class="py-3 px-4">${transaction.description}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(transaction.category)}">${transaction.category}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${transaction.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${transaction.type === 'income' ? 'Income' : 'Expense'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}">
+                        ${transaction.type === 'income' ? '+' : '-'}NPR ${transaction.amount.toLocaleString()}
+                    </td>
+                    <td class="py-3 px-4 text-center no-print">
+                        <button onclick="editTransaction(${transaction.id})" class="text-blue-600 hover:text-blue-800 mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteTransaction(${transaction.id})" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateGoalsList() {
+            const goalsList = document.getElementById('goalsList');
+            const currentBalance = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) - 
+                                  transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+            if (goals.length === 0) {
+                goalsList.innerHTML = '<p class="text-gray-500 text-center py-8">No savings goals yet. Set your first goal to get started!</p>';
+                return;
+            }
+
+            goalsList.innerHTML = goals.map(goal => {
+                const progress = Math.min((currentBalance / goal.amount) * 100, 100);
+                const isAchieved = progress >= 100 || goal.achieved;
+                
+                return `
+                    <div class="border rounded-lg p-4 ${isAchieved ? 'bg-green-50 border-green-200' : 'bg-white'}">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex items-center">
+                                    <input type="checkbox" ${goal.achieved ? 'checked' : ''} 
+                                           onchange="toggleGoal(${goal.id})" 
+                                           class="h-4 w-4 text-blue-600 rounded">
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900 ${goal.achieved ? 'line-through' : ''}">${goal.name}</h4>
+                                    <p class="text-sm text-gray-600">Target: NPR ${goal.amount.toLocaleString()}</p>
+                                    ${goal.targetDate ? `<p class="text-xs text-gray-500">Due: ${new Date(goal.targetDate).toLocaleDateString()}</p>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 no-print">
+                                <span class="text-sm font-medium text-gray-600">${progress.toFixed(1)}%</span>
+                                <button onclick="deleteGoal(${goal.id})" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-500" 
+                                 style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateBudgetList() {
+            const budgetList = document.getElementById('budgetList');
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
+            if (budgets.length === 0) {
+                budgetList.innerHTML = '<p class="text-gray-500 text-center py-8">No budgets set yet. Click "Set Budget" to get started.</p>';
+                return;
+            }
+
+            budgetList.innerHTML = budgets.map(budget => {
+                const monthlyExpenses = transactions
+                    .filter(t => t.type === 'expense' && 
+                            t.category === budget.category &&
+                            new Date(t.date).getMonth() === currentMonth &&
+                            new Date(t.date).getFullYear() === currentYear)
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const percentage = (monthlyExpenses / budget.amount) * 100;
+                const isOverBudget = percentage > 100;
+
+                return `
+                    <div class="border rounded-lg p-4 ${isOverBudget ? 'bg-red-50 border-red-200' : 'bg-white'}">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${budget.category}</h4>
+                                <p class="text-sm text-gray-600">NPR ${monthlyExpenses.toLocaleString()} / NPR ${budget.amount.toLocaleString()}</p>
+                            </div>
+                            <div class="flex items-center space-x-2 no-print">
+                                <span class="text-sm font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-600'}">${percentage.toFixed(1)}%</span>
+                                <button onclick="deleteBudget(${budget.id})" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="${isOverBudget ? 'bg-red-500' : 'bg-green-500'} h-2 rounded-full transition-all duration-500" 
+                                 style="width: ${Math.min(percentage, 100)}%"></div>
+                        </div>
+                        ${isOverBudget ? '<p class="text-xs text-red-600 mt-2">⚠️ Over budget!</p>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateCharts() {
+            updateMonthlyChart();
+            updateCategoryChart();
+        }
+
+        function updateMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            // Get last 6 months data
+            const months = [];
+            const incomeData = [];
+            const expenseData = [];
+            
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const month = date.toLocaleString('default', { month: 'short' });
+                const year = date.getFullYear();
+                
+                months.push(`${month} ${year}`);
+                
+                const monthIncome = transactions
+                    .filter(t => t.type === 'income' && 
+                            new Date(t.date).getMonth() === date.getMonth() &&
+                            new Date(t.date).getFullYear() === date.getFullYear())
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                const monthExpense = transactions
+                    .filter(t => t.type === 'expense' && 
+                            new Date(t.date).getMonth() === date.getMonth() &&
+                            new Date(t.date).getFullYear() === date.getFullYear())
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                incomeData.push(monthIncome);
+                expenseData.push(monthExpense);
+            }
+
+            if (monthlyChart) {
+                monthlyChart.destroy();
+            }
+
+            monthlyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'NPR ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': NPR ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCategoryChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            
+            const categoryData = {};
+            transactions.filter(t => t.type === 'expense').forEach(t => {
+                categoryData[t.category] = (categoryData[t.category] || 0) + t.amount;
+            });
+
+            const labels = Object.keys(categoryData);
+            const data = Object.values(categoryData);
+            
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+
+            if (labels.length === 0) {
+                ctx.font = '16px Inter';
+                ctx.fillStyle = '#9CA3AF';
+                ctx.textAlign = 'center';
+                ctx.fillText('No expense data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                return;
+            }
+
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#EF4444', '#F59E0B', '#10B981', '#3B82F6',
+                            '#8B5CF6', '#EC4899', '#F97316', '#06B6D4'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return context.label + ': NPR ' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateFilterCategories() {
+            const filterCategory = document.getElementById('filterCategory');
+            const categories = [...new Set(transactions.map(t => t.category))];
+            
+            filterCategory.innerHTML = '<option value="all">All Categories</option>';
+            categories.forEach(category => {
+                filterCategory.innerHTML += `<option value="${category}">${category}</option>`;
+            });
+        }
+
+        function updateFinancialSummary() {
+            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            
+            // Average monthly income/expense (last 12 months)
+            const monthsWithData = [...new Set(transactions.map(t => {
+                const date = new Date(t.date);
+                return `${date.getFullYear()}-${date.getMonth()}`;
+            }))].length;
+            
+            const avgIncome = monthsWithData > 0 ? totalIncome / monthsWithData : 0;
+            const avgExpense = monthsWithData > 0 ? totalExpenses / monthsWithData : 0;
+            
+            // Top expense category
+            const categoryTotals = {};
+            transactions.filter(t => t.type === 'expense').forEach(t => {
+                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+            });
+            const topCategory = Object.keys(categoryTotals).reduce((a, b) => categoryTotals[a] > categoryTotals[b] ? a : b, 'None');
+            
+            // Budget adherence
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            let budgetAdherence = 'N/A';
+            if (budgets.length > 0) {
+                let totalBudget = 0;
+                let totalSpent = 0;
+                budgets.forEach(budget => {
+                    totalBudget += budget.amount;
+                    const spent = transactions
+                        .filter(t => t.type === 'expense' && 
+                                t.category === budget.category &&
+                                new Date(t.date).getMonth() === currentMonth &&
+                                new Date(t.date).getFullYear() === currentYear)
+                        .reduce((sum, t) => sum + t.amount, 0);
+                    totalSpent += spent;
+                });
+                budgetAdherence = totalBudget > 0 ? `${(100 - (totalSpent / totalBudget * 100)).toFixed(1)}%` : 'N/A';
+            }
+            
+            // Goals achievement
+            const achievedGoals = goals.filter(g => g.achieved).length;
+            const goalsAchievement = goals.length > 0 ? `${(achievedGoals / goals.length * 100).toFixed(1)}%` : '0%';
+            
+            document.getElementById('avgIncome').textContent = `NPR ${avgIncome.toLocaleString()}`;
+            document.getElementById('avgExpense').textContent = `NPR ${avgExpense.toLocaleString()}`;
+            document.getElementById('topCategory').textContent = topCategory;
+            document.getElementById('totalTransactions').textContent = transactions.length.toString();
+            document.getElementById('budgetAdherence').textContent = budgetAdherence;
+            document.getElementById('goalsAchievement').textContent = goalsAchievement;
+        }
+
+        function filterTransactions() {
+            updateTransactionHistory();
+        }
+
+        function getCategoryColor(category) {
+            const colors = {
+                'Income': 'bg-green-100 text-green-800',
+                'Food': 'bg-orange-100 text-orange-800',
+                'Transport': 'bg-blue-100 text-blue-800',
+                'Entertainment': 'bg-purple-100 text-purple-800',
+                'Shopping': 'bg-pink-100 text-pink-800',
+                'Education': 'bg-indigo-100 text-indigo-800',
+                'Health': 'bg-red-100 text-red-800',
+                'Utilities': 'bg-yellow-100 text-yellow-800',
+                'Others': 'bg-gray-100 text-gray-800'
+            };
+            return colors[category] || 'bg-gray-100 text-gray-800';
+        }
+
+        // Data Management
+        function saveData() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            localStorage.setItem('goals', JSON.stringify(goals));
+            localStorage.setItem('budgets', JSON.stringify(budgets));
+        }
+
+        function exportData() {
+            const data = {
+                transactions: transactions,
+                goals: goals,
+                budgets: budgets,
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `finance-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm('This will replace all your current data. Are you sure you want to continue?')) {
+                        transactions = data.transactions || [];
+                        goals = data.goals || [];
+                        budgets = data.budgets || [];
+                        
+                        saveData();
+                        updateDashboard();
+                        updateTransactionHistory();
+                        updateGoalsList();
+                        updateBudgetList();
+                        updateCharts();
+                        updateFilterCategories();
+                        updateFinancialSummary();
+                        
+                        alert('Data imported successfully!');
+                    }
+                } catch (error) {
+                    alert('Error importing data. Please check the file format.');
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+                if (confirm('This will permanently delete all your transactions, goals, and budgets. Continue?')) {
+                    transactions = [];
+                    goals = [];
+                    budgets = [];
+                    
+                    localStorage.clear();
+                    
+                    updateDashboard();
+                    updateTransactionHistory();
+                    updateGoalsList();
+                    updateBudgetList();
+                    updateCharts();
+                    updateFilterCategories();
+                    updateFinancialSummary();
+                    
+                    alert('All data cleared successfully!');
+                }
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
